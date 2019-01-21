@@ -20,9 +20,6 @@
  * already holds mmap_sem, or other locks which nest inside mmap_sem.
  */
 
-long __weak probe_kernel_read(void *dst, const void *src, size_t size)
-    __attribute__((alias("__probe_kernel_read")));
-
 long __probe_kernel_read(void *dst, const void *src, size_t size)
 {
 	long ret;
@@ -37,6 +34,9 @@ long __probe_kernel_read(void *dst, const void *src, size_t size)
 
 	return ret ? -EFAULT : 0;
 }
+long __weak probe_kernel_read(void *dst, const void *src, size_t size)
+    __attribute__((alias("__probe_kernel_read")));
+
 EXPORT_SYMBOL_GPL(probe_kernel_read);
 
 /**
@@ -48,9 +48,6 @@ EXPORT_SYMBOL_GPL(probe_kernel_read);
  * Safely write to address @dst from the buffer at @src.  If a kernel fault
  * happens, handle that and return -EFAULT.
  */
-long __weak probe_kernel_write(void *dst, const void *src, size_t size)
-    __attribute__((alias("__probe_kernel_write")));
-
 long __probe_kernel_write(void *dst, const void *src, size_t size)
 {
 	long ret;
@@ -64,6 +61,9 @@ long __probe_kernel_write(void *dst, const void *src, size_t size)
 
 	return ret ? -EFAULT : 0;
 }
+long __weak probe_kernel_write(void *dst, const void *src, size_t size)
+    __attribute__((alias("__probe_kernel_write")));
+
 EXPORT_SYMBOL_GPL(probe_kernel_write);
 
 /**
