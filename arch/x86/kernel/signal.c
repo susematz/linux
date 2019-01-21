@@ -661,6 +661,11 @@ badframe:
 	return 0;
 }
 
+#ifndef CONFIG_IA32_EMULATION
+/* TinyCC compat */
+#define is_ia32_compat_frame() 0
+#define is_ia32_frame() 0
+#else
 static inline int is_ia32_compat_frame(void)
 {
 	return config_enabled(CONFIG_IA32_EMULATION) &&
@@ -671,6 +676,7 @@ static inline int is_ia32_frame(void)
 {
 	return config_enabled(CONFIG_X86_32) || is_ia32_compat_frame();
 }
+#endif
 
 static inline int is_x32_frame(void)
 {

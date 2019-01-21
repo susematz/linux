@@ -1432,13 +1432,14 @@ struct ieee80211_vif {
 	u8 drv_priv[0] __aligned(sizeof(void *));
 };
 
+#ifdef CONFIG_MAC80211_MESH
 static inline bool ieee80211_vif_is_mesh(struct ieee80211_vif *vif)
 {
-#ifdef CONFIG_MAC80211_MESH
 	return vif->type == NL80211_IFTYPE_MESH_POINT;
-#endif
-	return false;
 }
+#else
+#define ieee80211_vif_is_mesh(x) 0
+#endif
 
 /**
  * wdev_to_ieee80211_vif - return a vif struct from a wdev

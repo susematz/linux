@@ -1604,14 +1604,14 @@ static inline void ext4_clear_state_flags(struct ext4_inode_info *ei)
 /*
  * Returns true if the inode is inode is encrypted
  */
+#ifdef CONFIG_EXT4_FS_ENCRYPTION
 static inline int ext4_encrypted_inode(struct inode *inode)
 {
-#ifdef CONFIG_EXT4_FS_ENCRYPTION
 	return ext4_test_inode_flag(inode, EXT4_INODE_ENCRYPT);
-#else
-	return 0;
-#endif
 }
+#else
+#define ext4_encrypted_inode(x)	0
+#endif
 
 #define NEXT_ORPHAN(inode) EXT4_I(inode)->i_dtime
 

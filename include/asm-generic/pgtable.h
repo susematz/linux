@@ -628,10 +628,11 @@ static inline unsigned long my_zero_pfn(unsigned long addr)
 #ifdef CONFIG_MMU
 
 #ifndef CONFIG_TRANSPARENT_HUGEPAGE
-static inline int pmd_trans_huge(pmd_t pmd)
+#define pmd_trans_huge(x) 0
+/*static inline int pmd_trans_huge(pmd_t pmd)
 {
 	return 0;
-}
+}*/
 #ifndef __HAVE_ARCH_PMD_WRITE
 static inline int pmd_write(pmd_t pmd)
 {

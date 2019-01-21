@@ -376,10 +376,11 @@ struct inode;
 #define set_page_private(page, v)	((page)->private = (v))
 
 #if !defined(__HAVE_ARCH_PTE_DEVMAP) || !defined(CONFIG_TRANSPARENT_HUGEPAGE)
-static inline int pmd_devmap(pmd_t pmd)
+#define pmd_devmap(x) 0
+/*static inline int pmd_devmap(pmd_t pmd)
 {
 	return 0;
-}
+}*/
 #endif
 
 /*

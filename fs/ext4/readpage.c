@@ -77,14 +77,14 @@ static void completion_pages(struct work_struct *work)
 #endif
 }
 
+#ifdef CONFIG_EXT4_FS_ENCRYPTION
 static inline bool ext4_bio_encrypted(struct bio *bio)
 {
-#ifdef CONFIG_EXT4_FS_ENCRYPTION
 	return unlikely(bio->bi_private != NULL);
-#else
-	return false;
-#endif
 }
+#else
+#define ext4_bio_encrypted(x) 0
+#endif
 
 /*
  * I/O completion handler for multipage BIOs.
@@ -103,6 +103,7 @@ static void mpage_end_io(struct bio *bio)
 	struct bio_vec *bv;
 	int i;
 
+#ifndef CONFIG_EXT4_FS_ENCRYPTION
 	if (ext4_bio_encrypted(bio)) {
 		struct ext4_crypto_ctx *ctx = bio->bi_private;
 
@@ -115,6 +116,7 @@ static void mpage_end_io(struct bio *bio)
 			return;
 		}
 	}
+#endif
 	bio_for_each_segment_all(bv, bio, i) {
 		struct page *page = bv->bv_page;
 

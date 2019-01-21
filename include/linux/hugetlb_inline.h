@@ -12,10 +12,11 @@ static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
 
 #else
 
-static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
+#define is_vm_hugetlb_page(x) ((x), 0)
+/*static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
 {
 	return 0;
-}
+}*/
 
 #endif
 
