@@ -142,7 +142,8 @@ static inline int copy_fxregs_to_user(struct fxregs_state __user *fx)
 		return user_insn(fxsaveq %[fx], [fx] "=m" (*fx), "m" (*fx));
 
 	/* See comment in copy_fxregs_to_kernel() below. */
-	return user_insn(rex64/fxsave (%[fx]), "=m" (*fx), [fx] "R" (fx));
+	WARN_ON_FPU(1);
+	//return user_insn(rex64/fxsave (%[fx]), "=m" (*fx), [fx] "R" (fx));
 }
 
 static inline void copy_kernel_to_fxregs(struct fxregs_state *fx)
@@ -156,7 +157,7 @@ static inline void copy_kernel_to_fxregs(struct fxregs_state *fx)
 			err = check_insn(fxrstorq %[fx], "=m" (*fx), [fx] "m" (*fx));
 		} else {
 			/* See comment in copy_fxregs_to_kernel() below. */
-			err = check_insn(rex64/fxrstor (%[fx]), "=m" (*fx), [fx] "R" (fx), "m" (*fx));
+			err = 1;// check_insn(rex64/fxrstor (%[fx]), "=m" (*fx), [fx] "R" (fx), "m" (*fx));
 		}
 	}
 	/* Copying from a kernel buffer to FPU registers should never fail: */
@@ -171,8 +172,9 @@ static inline int copy_user_to_fxregs(struct fxregs_state __user *fx)
 		return user_insn(fxrstorq %[fx], "=m" (*fx), [fx] "m" (*fx));
 
 	/* See comment in copy_fxregs_to_kernel() below. */
-	return user_insn(rex64/fxrstor (%[fx]), "=m" (*fx), [fx] "R" (fx),
-			  "m" (*fx));
+	WARN_ON_FPU(1);
+	/*return user_insn(rex64/fxrstor (%[fx]), "=m" (*fx), [fx] "R" (fx),
+			  "m" (*fx));*/
 }
 
 static inline void copy_kernel_to_fregs(struct fregs_state *fx)
@@ -215,9 +217,10 @@ static inline void copy_fxregs_to_kernel(struct fpu *fpu)
 		 * select an addressing mode that doesn't require extended
 		 * registers.
 		 */
-		asm volatile( "rex64/fxsave (%[fx])"
+	        WARN_ON_FPU(1);
+		/*asm volatile( "rex64/fxsave (%[fx])"
 			     : "=m" (fpu->state.fxsave)
-			     : [fx] "R" (&fpu->state.fxsave));
+			     : [fx] "R" (&fpu->state.fxsave));*/
 	}
 }
 

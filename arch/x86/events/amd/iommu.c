@@ -33,8 +33,6 @@
 #define _GET_PASID_MASK(ev) ((ev->hw.extra_reg.config >> 16) & 0xFFFFULL)
 #define _GET_DOMID_MASK(ev) ((ev->hw.extra_reg.config >> 32) & 0xFFFFULL)
 
-static struct perf_amd_iommu __perf_iommu;
-
 struct perf_amd_iommu {
 	struct pmu pmu;
 	u8 max_banks;
@@ -43,6 +41,8 @@ struct perf_amd_iommu {
 	raw_spinlock_t lock;
 	const struct attribute_group *attr_groups[4];
 };
+
+static struct perf_amd_iommu __perf_iommu;
 
 #define format_group	attr_groups[0]
 #define cpumask_group	attr_groups[1]
