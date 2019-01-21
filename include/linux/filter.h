@@ -287,6 +287,17 @@ struct bpf_prog_aux;
 #define __BPF_JUMP(CODE, K, JT, JF)				\
 	((struct sock_filter) BPF_JUMP(CODE, K, JT, JF))
 
+#if 1
+/* TCC can't constant-evaluate the statement expression, but can
+   do that with this normal conditional expression.  */
+#define bytes_to_bpf_size(bytes) \
+    (bytes == sizeof(u8) ? BPF_B : \
+     bytes == sizeof(u16) ? BPF_H : \
+     bytes == sizeof(u32) ? BPF_W : \
+     bytes == sizeof(u64) ? BPF_DW : \
+     -EINVAL)
+
+#else
 #define bytes_to_bpf_size(bytes)				\
 ({								\
 	int bpf_size = -EINVAL;					\
@@ -302,6 +313,7 @@ struct bpf_prog_aux;
 								\
 	bpf_size;						\
 })
+#endif
 
 #ifdef CONFIG_COMPAT
 /* A struct sock_filter is architecture independent. */
