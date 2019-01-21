@@ -78,7 +78,7 @@ int main(int argc, char *argv[])
 	offs = (offs+4095) & ~4095; /* Round to a 4K boundary */
 	run_size = atoi(argv[2]);
 
-	printf(".section \".rodata..compressed\",\"a\",@progbits\n");
+	printf(".section \".compressed\",\"a\",@progbits\n");
 	printf(".globl z_input_len\n");
 	printf("z_input_len = %lu\n", ilen);
 	printf(".globl z_output_len\n");
@@ -93,7 +93,8 @@ int main(int argc, char *argv[])
 
 	printf(".globl input_data, input_data_end\n");
 	printf("input_data:\n");
-	printf(".incbin \"%s\"\n", argv[1]);
+	/*printf(".incbin \"%s\"\n", argv[1]);*/
+	printf(".incbin \"vmlinux\"\n");
 	printf("input_data_end:\n");
 
 	retval = 0;

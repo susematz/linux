@@ -115,5 +115,6 @@ quiet_cmd_mkpiggy = MKPIGGY $@
       cmd_mkpiggy = $(obj)/mkpiggy $< $(RUN_SIZE) > $@ || ( rm -f $@ ; false )
 
 targets += piggy.S
-$(obj)/piggy.S: $(obj)/vmlinux.bin.$(suffix-y) $(obj)/mkpiggy FORCE
+#$(obj)/piggy.S: $(obj)/vmlinux.bin.$(suffix-y) $(obj)/mkpiggy FORCE
+$(obj)/piggy.S: vmlinux $(obj)/mkpiggy FORCE
 	$(call if_changed,mkpiggy)

@@ -347,7 +347,7 @@ static inline void handle_relocations(void *output, unsigned long output_len)
 { }
 #endif
 
-static void parse_elf(void *output)
+static void parse_elf(void *output, void *input_data)
 {
 #ifdef CONFIG_X86_64
 	Elf64_Ehdr ehdr;
@@ -359,7 +359,7 @@ static void parse_elf(void *output)
 	void *dest;
 	int i;
 
-	memcpy(&ehdr, output, sizeof(ehdr));
+	memcpy(&ehdr, input_data, sizeof(ehdr));
 	if (ehdr.e_ident[EI_MAG0] != ELFMAG0 ||
 	   ehdr.e_ident[EI_MAG1] != ELFMAG1 ||
 	   ehdr.e_ident[EI_MAG2] != ELFMAG2 ||
@@ -374,7 +374,8 @@ static void parse_elf(void *output)
 	if (!phdrs)
 		error("Failed to allocate space for phdrs");
 
-	memcpy(phdrs, output + ehdr.e_phoff, sizeof(*phdrs) * ehdr.e_phnum);
+	memcpy(phdrs, input_data + ehdr.e_phoff, sizeof(*phdrs) * ehdr.e_phnum);
+	debug_putstr("1\n");
 
 	for (i = 0; i < ehdr.e_phnum; i++) {
 		phdr = &phdrs[i];
@@ -387,9 +388,13 @@ static void parse_elf(void *output)
 #else
 			dest = (void *)(phdr->p_paddr);
 #endif
-			memcpy(dest,
-			       output + phdr->p_offset,
-			       phdr->p_filesz);
+			debug_putstr("2\n");
+			void *src = input_data + phdr->p_offset;
+			debug_putaddr(dest);
+			debug_putaddr(src);
+			debug_putaddr(phdr->p_filesz);
+			memcpy(dest, src, phdr->p_filesz);
+			debug_putstr("3\n");
 			break;
 		default: /* Ignore other PT_* */ break;
 		}
@@ -470,9 +475,9 @@ asmlinkage __visible void *decompress_kernel(void *rmode, memptr heap,
 #endif
 
 	debug_putstr("\nDecompressing Linux... ");
-	__decompress(input_data, input_len, NULL, NULL, output, output_len,
-			NULL, error);
-	parse_elf(output);
+	/*__decompress(input_data, input_len, NULL, NULL, output, output_len,
+			NULL, error);*/
+	parse_elf(output, input_data);
 	/*
 	 * 32-bit always performs relocations. 64-bit relocations are only
 	 * needed if kASLR has chosen a different load address.

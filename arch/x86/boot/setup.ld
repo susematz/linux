@@ -48,7 +48,7 @@ SECTIONS
 		*(.bss)
 		__bss_end = .;
 	}
-	. = ALIGN(16);
+	. = ALIGN(512);
 	_end = .;
 
 	/DISCARD/ : { *(.note*) }

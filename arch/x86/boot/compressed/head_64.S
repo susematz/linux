@@ -130,18 +130,19 @@ ENTRY(startup_32)
   * Build early 4G boot pagetable
   */
 	/* Initialize Page tables to 0 */
-	leal	pgtable(%ebx), %edi
+	/*leal	pgtable(%ebx), %edi*/
+	leal	pgtable(%ebp), %edi
 	xorl	%eax, %eax
 	movl	$((4096*6)/4), %ecx
 	rep	stosl
 
 	/* Build Level 4 */
-	leal	pgtable + 0(%ebx), %edi
+	leal	pgtable + 0(%ebp), %edi
 	leal	0x1007 (%edi), %eax
 	movl	%eax, 0(%edi)
 
 	/* Build Level 3 */
-	leal	pgtable + 0x1000(%ebx), %edi
+	leal	pgtable + 0x1000(%ebp), %edi
 	leal	0x1007(%edi), %eax
 	movl	$4, %ecx
 1:	movl	%eax, 0x00(%edi)
@@ -151,7 +152,7 @@ ENTRY(startup_32)
 	jnz	1b
 
 	/* Build Level 2 */
-	leal	pgtable + 0x2000(%ebx), %edi
+	leal	pgtable + 0x2000(%ebp), %edi
 	movl	$0x00000183, %eax
 	movl	$2048, %ecx
 1:	movl	%eax, 0(%edi)
@@ -161,7 +162,7 @@ ENTRY(startup_32)
 	jnz	1b
 
 	/* Enable the boot page tables */
-	leal	pgtable(%ebx), %eax
+	leal	pgtable(%ebp), %eax
 	movl	%eax, %cr3
 
 	/* Enable Long mode in EFER (Extended Feature Enable Register) */
@@ -334,24 +335,28 @@ preferred_addr:
 	cmpq	$LOAD_PHYSICAL_ADDR, %rbp
 	jge	1f
 #endif
-	movq	$LOAD_PHYSICAL_ADDR, %rbp
+	movq	$(8*LOAD_PHYSICAL_ADDR), %rbp
 1:
 
 	/* Target address to relocate to for decompression */
-	leaq	z_extract_offset(%rbp), %rbx
+	/*leaq	z_extract_offset(%rbp), %rbx*/
+	movq	%rbp, %rbx
 
 	/* Set up the stack */
 	leaq	boot_stack_end(%rbx), %rsp
+	leaq	boot_stack_end(%rip), %rsp
 
 	/* Zero EFLAGS */
 	pushq	$0
 	popfq
 
+#if 0
 /*
  * Copy the compressed kernel to the end of our buffer
  * where decompression in place becomes safe.
  */
-	pushq	%rsi
+	/*pushq	%rsi*/
+	movq	%rsi, %r8
 	leaq	(_bss-8)(%rip), %rsi
 	leaq	(_bss-8)(%rbx), %rdi
 	movq	$_bss /* - $startup_32 */, %rcx
@@ -359,13 +364,17 @@ preferred_addr:
 	std
 	rep	movsq
 	cld
-	popq	%rsi
+	/*popq	%rsi*/
+	movq	%r8, %rsi
 
 /*
  * Jump to the relocated address.
  */
 	leaq	relocated(%rbx), %rax
 	jmp	*%rax
+#else
+	jmp relocated
+#endif
 
 #ifdef CONFIG_EFI_STUB
 	.org 0x390
@@ -407,6 +416,7 @@ relocated:
 	jmp	1b
 2:
 	
+	leaq	boot_stack_end(%rip), %rsp
 /*
  * Do the decompression, and jump to the new kernel..
  */
@@ -416,7 +426,9 @@ relocated:
 	movq	%rsi, %rdi		/* real mode address */
 	leaq	boot_heap(%rip), %rsi	/* malloc area for uncompression */
 	leaq	input_data(%rip), %rdx  /* input_data */
-	movl	$z_input_len, %ecx	/* input_len */
+	leaq	input_data_end(%rip), %rcx
+	subq	%rdx, %rcx
+	/*movl	$z_input_len, %ecx	/* input_len */
 	movq	%rbp, %r8		/* output target address */
 	movq	$z_output_len, %r9	/* decompressed length, end of relocs */
 	call	decompress_kernel	/* returns kernel location in %rax */

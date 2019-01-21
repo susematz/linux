@@ -113,9 +113,13 @@ LDFLAGS_setup.elf	:= -T
 $(obj)/setup.elf: $(src)/setup.ld $(SETUP_OBJS) FORCE
 	$(call if_changed,ld)
 
-OBJCOPYFLAGS_setup.bin	:= -O binary
-$(obj)/setup.bin: $(obj)/setup.elf FORCE
-	$(call if_changed,objcopy)
+#OBJCOPYFLAGS_setup.bin	:= -O binary
+#$(obj)/setup.bin: $(obj)/setup.elf FORCE
+#	$(call if_changed,objcopy)
+
+LDFLAGS_setup.bin	:= --oformat binary -T
+$(obj)/setup.bin: $(src)/setup.ld $(SETUP_OBJS) FORCE
+	$(call if_changed,ld)
 
 $(obj)/compressed/vmlinux: FORCE
 	$(Q)$(MAKE) $(build)=$(obj)/compressed $@
