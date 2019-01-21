@@ -90,7 +90,7 @@ static inline int alternatives_text_reserved(void *start, void *end)
 #define alt_slen		"662b-661b"
 #define alt_pad_len		alt_end_marker"b-662b"
 #define alt_total_slen		alt_end_marker"b-661b"
-#define alt_rlen(num)		e_replacement(num)"f-"b_replacement(num)"f"
+#define alt_rlen(num)		e_replacement(num)"b-"b_replacement(num)"b"
 
 #define __OLDINSTR(oldinstr, num)					\
 	"661:\n\t" oldinstr "\n662:\n"					\
@@ -121,7 +121,7 @@ static inline int alternatives_text_reserved(void *start, void *end)
 
 #define ALTINSTR_ENTRY(feature, num)					      \
 	" .long 661b - .\n"				/* label           */ \
-	" .long " b_replacement(num)"f - .\n"		/* new instruction */ \
+	" .long " b_replacement(num)"b - .\n"		/* new instruction */ \
 	" .word " __stringify(feature) "\n"		/* feature bit     */ \
 	" .byte " alt_total_slen "\n"			/* source len      */ \
 	" .byte " alt_rlen(num) "\n"			/* replacement len */ \
@@ -132,24 +132,24 @@ static inline int alternatives_text_reserved(void *start, void *end)
 
 /* alternative assembly primitive: */
 #define ALTERNATIVE(oldinstr, newinstr, feature)			\
+	".pushsection .altinstr_replacement, \"ax\"\n"			\
+	ALTINSTR_REPLACEMENT(newinstr, feature, 1)			\
+	".popsection\n"							\
 	OLDINSTR(oldinstr, 1)						\
 	".pushsection .altinstructions,\"a\"\n"				\
 	ALTINSTR_ENTRY(feature, 1)					\
-	".popsection\n"							\
-	".pushsection .altinstr_replacement, \"ax\"\n"			\
-	ALTINSTR_REPLACEMENT(newinstr, feature, 1)			\
-	".popsection"
+	".popsection\n"
 
 #define ALTERNATIVE_2(oldinstr, newinstr1, feature1, newinstr2, feature2)\
+	".pushsection .altinstr_replacement, \"ax\"\n"			\
+	ALTINSTR_REPLACEMENT(newinstr1, feature1, 1)			\
+	ALTINSTR_REPLACEMENT(newinstr2, feature2, 2)			\
+	".popsection\n"							\
 	OLDINSTR_2(oldinstr, 1, 2)					\
 	".pushsection .altinstructions,\"a\"\n"				\
 	ALTINSTR_ENTRY(feature1, 1)					\
 	ALTINSTR_ENTRY(feature2, 2)					\
-	".popsection\n"							\
-	".pushsection .altinstr_replacement, \"ax\"\n"			\
-	ALTINSTR_REPLACEMENT(newinstr1, feature1, 1)			\
-	ALTINSTR_REPLACEMENT(newinstr2, feature2, 2)			\
-	".popsection"
+	".popsection\n"
 
 /*
  * Alternative instructions for different CPU types or capabilities.
