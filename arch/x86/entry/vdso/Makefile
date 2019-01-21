@@ -1,6 +1,7 @@
 #
 # Building vDSO images for x86.
 #
+override REALCC:=$(CC)
 
 KBUILD_CFLAGS += $(DISABLE_LTO)
 KASAN_SANITIZE			:= n

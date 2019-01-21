@@ -9,6 +9,7 @@
 # Changed by many, many contributors over the years.
 #
 
+override REALCC:=$(CC)
 KASAN_SANITIZE			:= n
 OBJECT_FILES_NON_STANDARD	:= y
 
