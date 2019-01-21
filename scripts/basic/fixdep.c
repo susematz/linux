@@ -316,6 +316,8 @@ static void parse_dep_file(void *map, size_t len)
 		/* Skip any "white space" */
 		while (m < end && (*m == ' ' || *m == '\\' || *m == '\n'))
 			m++;
+		if (m == end)
+			break;
 		/* Find next "white space" */
 		p = m;
 		while (p < end && *p != ' ' && *p != '\\' && *p != '\n')
