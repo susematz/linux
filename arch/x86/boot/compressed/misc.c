@@ -108,6 +108,21 @@
 #undef memset
 #define memzero(s, n)	memset((s), 0, (n))
 
+#ifdef __TINYC__
+void * memmove(void *dest, const void *src, size_t n)
+{
+  char *d = dest;
+  const char *s = src;
+  if (d < s) {
+      while (n--) *d++ = *s++;
+  } else {
+      d+=n;
+      s+=n;
+      while (n--) *--d = *--s;
+  }
+  return dest;
+}
+#endif
 
 static void error(char *m);
 
@@ -378,7 +393,13 @@ static void parse_elf(void *output)
 			break;
 		default: /* Ignore other PT_* */ break;
 		}
+		debug_putstr("PIPAPO\n");
 	}
+	debug_putstr("444444444444444444\n");
+	debug_putstr("444444444444444444\n");
+	debug_putstr("444444444444444444\n");
+	debug_putstr("444444444444444444\n");
+	debug_putstr("444444444444444444\n");
 
 	free(phdrs);
 }
@@ -432,6 +453,7 @@ asmlinkage __visible void *decompress_kernel(void *rmode, memptr heap,
 					output_len > run_size ? output_len
 							      : run_size);
 
+	debug_putaddr(output);
 	/* Validate memory location choices. */
 	if ((unsigned long)output & (MIN_KERNEL_ALIGN - 1))
 		error("Destination address inappropriately aligned");
@@ -455,6 +477,7 @@ asmlinkage __visible void *decompress_kernel(void *rmode, memptr heap,
 	 * 32-bit always performs relocations. 64-bit relocations are only
 	 * needed if kASLR has chosen a different load address.
 	 */
+	debug_putstr("5\n");
 	if (!IS_ENABLED(CONFIG_X86_64) || output != output_orig)
 		handle_relocations(output, output_len);
 	debug_putstr("done.\nBooting the kernel.\n");

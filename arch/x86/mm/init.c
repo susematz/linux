@@ -1,3 +1,4 @@
+#define DEBUG
 #include <linux/gfp.h>
 #include <linux/initrd.h>
 #include <linux/ioport.h>
