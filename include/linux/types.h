@@ -41,7 +41,7 @@ typedef __kernel_old_uid_t	old_uid_t;
 typedef __kernel_old_gid_t	old_gid_t;
 #endif /* CONFIG_UID16 */
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) || defined(__TINYC__)
 typedef __kernel_loff_t		loff_t;
 #endif
 
@@ -107,7 +107,7 @@ typedef		__u8		uint8_t;
 typedef		__u16		uint16_t;
 typedef		__u32		uint32_t;
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) || defined(__TINYC__)
 typedef		__u64		uint64_t;
 typedef		__u64		u_int64_t;
 typedef		__s64		int64_t;

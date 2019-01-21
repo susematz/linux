@@ -80,6 +80,10 @@ extern void __chk_io_ptr(const volatile void __iomem *);
 #include <linux/compiler-clang.h>
 #endif
 
+#ifdef __TINYC__
+#include <linux/compiler-tcc.h>
+#endif
+
 /*
  * Generic compiler-dependent macros required for kernel
  * build go below this comment. Actual compiler/compiler version
@@ -182,6 +186,10 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
 /* Unreachable code */
 #ifndef unreachable
 # define unreachable() do { } while (1)
+#endif
+
+#ifndef __always_inline
+#define __always_inline inline
 #endif
 
 #ifndef RELOC_HIDE
@@ -502,8 +510,13 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
  * supplied condition is *false*, emitting the supplied error message if the
  * compiler has support to do so.
  */
+#ifdef __TINYC__
+#define compiletime_assert(condition, msg) \
+	_compiletime_assert(condition, msg, __compiletime_assert_, 0)
+#else
 #define compiletime_assert(condition, msg) \
 	_compiletime_assert(condition, msg, __compiletime_assert_, __LINE__)
+#endif
 
 #define compiletime_assert_atomic_type(t)				\
 	compiletime_assert(__native_word(t),				\
