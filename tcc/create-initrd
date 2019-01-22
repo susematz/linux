@@ -1,0 +1,95 @@
+#!/bin/bash
+
+GEN_INIT_CPIO=$(dirname $0)/../usr/gen_init_cpio
+if ! test -x $GEN_INIT_CPIO; then
+    echo "gen_init_cpio not found, please make kernel first"
+    exit 1
+fi
+temp=$(dirname $0)/initrd
+mkdir -p "$temp/seen"
+
+add_file()
+{
+	local src=$1 dst=$2
+
+	if test -e "$temp/seen/$dst"; then
+		return
+	fi
+	dirs=($(echo "$dst" |  sed -rn ':a; s:/[^/]+$::p; ta' | tac))
+	for dir in "${dirs[@]}"; do
+		if test -d "$temp/seen/$dir"; then
+			continue
+		fi
+		echo "dir $dir 0755 0 0" >>"$temp/list"
+		mkdir "$temp/seen/$dir"
+	done
+	if test -x $src; then
+		mode="0755"
+	else
+		mode="0644"
+	fi
+	echo "file $dst $src 0755 0 0" >>"$temp/list"
+	touch "$temp/seen/$dst"
+}
+add_files()
+{
+	while test $# -gt 0; do
+		local file=$1
+		shift
+		add_file "$file" "$file"
+		set -- "$@" $(ldd "$file" 2>/dev/null | \
+			sed -ne 's:\t\(.* => \)\?\(/.*\) (0x[0-9a-f]*):\2:p' | \
+			sort -u)
+	done
+}
+
+set -e
+
+if test -n "$1"; then
+	cd "$1"
+fi
+
+PROGRAMS=(sh cp rm mkdir cat chroot echo insmod modprobe mount less ls strace)
+add_files /bin/bash
+for prog in ${PROGRAMS[@]}; do
+	absprog=$(which ${prog} 2>/dev/null || echo)
+	if [ -z ${absprog} ]; then
+	        if [ -f /usr/sbin/${prog} ]; then
+		    absprog=/usr/sbin/${prog}
+		elif [ -f /sbin/${prog} ]; then
+		    absprog=/sbin/${prog}
+		else
+		    echo "${prog} not found, skipping.."
+		    continue
+		fi
+	fi
+	add_files ${absprog}
+done
+
+MARKER="It WoRkS"
+cat >"$temp/init" <<-EOF
+	#!/bin/bash
+
+	echo
+	echo $MARKER
+	echo
+	bash
+	poweroff
+EOF
+add_file "$temp/init" "/init"
+cat >"$temp/poweroff.c" <<-EOF
+	#include <unistd.h>
+	#include <sys/reboot.h>
+
+	int main(int argc, char **argv)
+	{
+		reboot(RB_POWER_OFF);
+		return 0;
+	}
+EOF
+gcc -Wall -o "$temp/poweroff" "$temp/poweroff.c"
+add_file "$temp/poweroff" "/bin/poweroff"
+$GEN_INIT_CPIO "$temp/list" >"$temp/cpio"
+
+echo initrd is in $temp/cpio
+exit 0
