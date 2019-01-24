@@ -67,6 +67,7 @@ jiffies_64 = jiffies;
 #endif
 
 PHDRS {
+	multiboot PT_LOAD FLAGS(6);     /* RW_ */
 	text PT_LOAD FLAGS(5);          /* R_E */
 	data PT_LOAD FLAGS(6);          /* RW_ */
 #ifdef CONFIG_X86_64
@@ -80,12 +81,17 @@ PHDRS {
 
 SECTIONS
 {
+	. = 4096;
+	.multiboot : AT(4096) {
+	  *(.multiboot)
+	} : multiboot
 #ifdef CONFIG_X86_32
 	. = LOAD_OFFSET + LOAD_PHYSICAL_ADDR;
 	phys_startup_32 = ABSOLUTE(startup_32 - LOAD_OFFSET);
 #else
 	. = __START_KERNEL;
 	phys_startup_64 = ABSOLUTE(startup_64 - LOAD_OFFSET);
+	phys_mb_startup_32 = ABSOLUTE(mb_startup_32 - LOAD_OFFSET);
 #endif
 
 	/* Text and read-only data */
@@ -325,6 +331,8 @@ SECTIONS
 		. = ALIGN(PAGE_SIZE);
 		__bss_stop = .;
 	}
+	phys_bss_start = ABSOLUTE(__bss_start - LOAD_OFFSET);
+	load_bss_start = LOADADDR(.bss);
 
 	. = ALIGN(PAGE_SIZE);
 	.brk : AT(ADDR(.brk) - LOAD_OFFSET) {
@@ -336,6 +344,8 @@ SECTIONS
 
 	. = ALIGN(PAGE_SIZE);
 	_end = .;
+	phys_end = ABSOLUTE(_end - LOAD_OFFSET);
+	load_end = LOADADDR(.bss) + phys_end - phys_bss_start;
 
         STABS_DEBUG
         DWARF_DEBUG

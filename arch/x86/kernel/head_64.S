@@ -41,6 +41,21 @@ L4_PAGE_OFFSET = pgd_index(__PAGE_OFFSET)
 L4_START_KERNEL = pgd_index(__START_KERNEL_map)
 L3_START_KERNEL = pud_index(__START_KERNEL_map)
 
+.section .multiboot, "aw", @progbits
+#define MB_MAGIC 0x1badb002
+#define MB_FLAGS 0x10003
+#define MB_CHECKSUM -(MB_MAGIC + MB_FLAGS)
+
+.align  4
+.int    MB_MAGIC
+.int    MB_FLAGS
+.int    MB_CHECKSUM
+.int    4096 - 0x200000 + 0x1000000  /* multiboot_uint32_t header_addr; */
+.int    0x1000000  /* multiboot_uint32_t load_addr; */
+.int    phys_bss_start  /* multiboot_uint32_t load_end_addr; */
+.int    phys_end  /* multiboot_uint32_t bss_end_addr; */
+.int    phys_mb_startup_32  /* multiboot_uint32_t entry_addr; */
+
 	.text
 	__HEAD
 	.code64
@@ -527,3 +542,198 @@ ENTRY(phys_base)
 NEXT_PAGE(empty_zero_page)
 	.skip PAGE_SIZE
 
+/* ===================================================== */
+/* multiboot 32bit startup code */
+	.code32
+	.text
+
+#include <linux/init.h>
+#include <linux/linkage.h>
+#include <asm/segment.h>
+#include <asm/boot.h>
+#include <asm/msr.h>
+#include <asm/processor-flags.h>
+#include <asm/asm-offsets.h>
+#include <asm/bootparam.h>
+
+	.code32
+ENTRY(mb_startup_32)
+	/*
+	 * 32bit entry is 0 and it is ABI so immutable!
+	 * If we come here directly from a bootloader,
+	 * kernel(text+data+bss+brk) ramdisk, zero_page, command line
+	 * all need to be under the 4G limit.
+	 */
+	cld
+
+	/* ebx contains physical address of multiboot info */
+	mov	%ebx, %esi
+/*
+ * Calculate the delta between where we were compiled to run
+ * at and where we were actually loaded at.  This can only be done
+ * with a short local call on x86.  Nothing  else will tell us what
+ * address we are running at.  The reserved chunk of the real-mode
+ * data at 0x1e4 (defined as a scratch field) are used as the stack
+ * for this calculation. Only 4 bytes are needed.
+ */
+	mov	(%esi), %ebx
+	leal	4(%esi), %esp
+	call	1f
+1:	popl	%ebp
+	subl	$1b - __START_KERNEL_map, %ebp
+	mov	%ebx,(%esi)
+
+/* setup a stack and make sure cpu supports long mode. */
+	movl	$boot_stack_end - __START_KERNEL_map, %eax
+	addl	%ebp, %eax
+	movl	%eax, %esp
+
+	/* Should verify cpu here for longmode */
+
+/*
+ * Prepare for entering 64 bit mode
+ */
+
+	/* Load new GDT with the 64bit segments using 32bit descriptor */
+	leal	gdt - __START_KERNEL_map(%ebp), %eax
+	movl	%eax, gdt+2 - __START_KERNEL_map(%ebp)
+	lgdt	gdt - __START_KERNEL_map(%ebp)
+
+	/* Enable PAE mode */
+	movl	%cr4, %eax
+	orl	$X86_CR4_PAE, %eax
+	movl	%eax, %cr4
+
+ /*
+  * Build early 4G boot pagetable
+  */
+	/* Initialize Page tables to 0 */
+	/*leal	pgtable(%ebx), %edi*/
+	leal	pgtable - __START_KERNEL_map(%ebp), %edi
+	xorl	%eax, %eax
+	movl	$((4096*6)/4), %ecx
+	rep	stosl
+
+	/* Build Level 4 */
+	leal	pgtable + 0 - __START_KERNEL_map(%ebp), %edi
+	leal	0x1007 (%edi), %eax
+	movl	%eax, 0(%edi)
+
+	/* Build Level 3 */
+	leal	pgtable + 0x1000 - __START_KERNEL_map(%ebp), %edi
+	leal	0x1007(%edi), %eax
+	movl	$4, %ecx
+1:	movl	%eax, 0x00(%edi)
+	addl	$0x00001000, %eax
+	addl	$8, %edi
+	decl	%ecx
+	jnz	1b
+
+	/* Build Level 2 */
+	leal	pgtable + 0x2000 - __START_KERNEL_map(%ebp), %edi
+	movl	$0x00000183, %eax
+	movl	$2048, %ecx
+1:	movl	%eax, 0(%edi)
+	addl	$0x00200000, %eax
+	addl	$8, %edi
+	decl	%ecx
+	jnz	1b
+
+	/* Enable the boot page tables */
+	leal	pgtable - __START_KERNEL_map(%ebp), %eax
+	movl	%eax, %cr3
+
+	/* Enable Long mode in EFER (Extended Feature Enable Register) */
+	movl	$MSR_EFER, %ecx
+	rdmsr
+	btsl	$_EFER_LME, %eax
+	wrmsr
+
+	/* After gdt is loaded */
+	xorl	%eax, %eax
+	lldt	%ax
+	movl    $__BOOT_TSS, %eax
+	ltr	%ax
+
+	/*
+	 * Setup for the jump to 64bit mode
+	 *
+	 * When the jump is performend we will be in long mode but
+	 * in 32bit compatibility mode with EFER.LME = 1, CS.L = 0, CS.D = 1
+	 * (and in turn EFER.LMA = 1).	To jump into 64bit mode we use
+	 * the new gdt/idt that has __KERNEL_CS with CS.L = 1.
+	 * We place all of the values on our mini stack so lret can
+	 * used to perform that far jump.
+	 */
+	pushl	$__KERNEL_CS
+	leal	mb_startup_64 - __START_KERNEL_map(%ebp), %eax
+	pushl	%eax
+
+	/* Enter paged protected Mode, activating Long Mode */
+	movl	$(X86_CR0_PG | X86_CR0_PE), %eax /* Enable Paging and Protected mode */
+	movl	%eax, %cr0
+
+	/* Jump from 32bit compatibility mode into 64bit mode. */
+	lret
+ENDPROC(mb_startup_32)
+
+	.code64
+ENTRY(mb_startup_64)
+	/*
+	 * 64bit entry is 0x200 and it is ABI so immutable!
+	 * We come here either from startup_32 or directly from a
+	 * 64bit bootloader.
+	 * If we come here from a bootloader, kernel(text+data+bss+brk),
+	 * ramdisk, zero_page, command line could be above 4G.
+	 * We depend on an identity mapped page table being provided
+	 * that maps our entire kernel(text+data+bss+brk), zero page
+	 * and command line.
+	 */
+	/* Setup data segments. */
+	xorl	%eax, %eax
+	movl	%eax, %ds
+	movl	%eax, %es
+	movl	%eax, %ss
+	movl	%eax, %fs
+	movl	%eax, %gs
+
+	or	$1, %rsi
+	jmp startup_64
+
+	.code32
+no_longmode:
+	/* This isn't an x86-64 CPU so hang */
+1:
+	hlt
+	jmp     1b
+
+	.data
+gdt:
+	.word	gdt_end - gdt
+	.long	gdt - __START_KERNEL_map
+	.word	0
+	.quad	0x0000000000000000	/* NULL descriptor */
+	.quad	0x00af9a000000ffff	/* __KERNEL_CS */
+	.quad	0x00cf92000000ffff	/* __KERNEL_DS */
+	.quad	0x0080890000000000	/* TS descriptor */
+	.quad   0x0000000000000000	/* TS continued */
+gdt_end:
+
+/*
+ * Stack and heap for uncompression
+ */
+	.bss
+	.balign 4
+boot_heap:
+	.fill BOOT_HEAP_SIZE, 1, 0
+boot_stack:
+	.fill BOOT_STACK_SIZE, 1, 0
+boot_stack_end:
+
+/*
+ * Space for page tables (not in .bss so not zeroed)
+ */
+	.data
+	.balign 4096
+pgtable:
+	.fill 6*4096, 1, 0

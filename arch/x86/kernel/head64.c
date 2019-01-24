@@ -116,12 +116,183 @@ static unsigned long get_cmd_line_ptr(void)
 	return cmd_line_ptr;
 }
 
+/* The symbol table for a.out. */
+struct multiboot_aout_symbol_table
+{
+  uint32_t tabsize;
+  uint32_t strsize;
+  uint32_t addr;
+  uint32_t reserved;
+};
+typedef struct multiboot_aout_symbol_table multiboot_aout_symbol_table_t;
+
+/* The section header table for ELF. */
+struct multiboot_elf_section_header_table
+{
+  uint32_t num;
+  uint32_t size;
+  uint32_t addr;
+  uint32_t shndx;
+};
+typedef struct multiboot_elf_section_header_table multiboot_elf_section_header_table_t;
+struct multiboot_info
+{
+  /* Multiboot info version number */
+  uint32_t flags;
+
+  /* Available memory from BIOS */
+  uint32_t mem_lower;
+  uint32_t mem_upper;
+
+  /* "root" partition */
+  uint32_t boot_device;
+
+  /* Kernel command line */
+  uint32_t cmdline;
+
+  /* Boot-Module list */
+  uint32_t mods_count;
+  uint32_t mods_addr;
+
+  union
+  {
+    multiboot_aout_symbol_table_t aout_sym;
+    multiboot_elf_section_header_table_t elf_sec;
+  } u;
+
+  /* Memory Mapping buffer */
+  uint32_t mmap_length;
+  uint32_t mmap_addr;
+
+  /* Drive Info buffer */
+  uint32_t drives_length;
+  uint32_t drives_addr;
+
+  /* ROM configuration table */
+  uint32_t config_table;
+
+  /* Boot Loader Name */
+  uint32_t boot_loader_name;
+
+  /* APM table */
+  uint32_t apm_table;
+
+  /* Video */
+  uint32_t vbe_control_info;
+  uint32_t vbe_mode_info;
+  uint16_t vbe_mode;
+  uint16_t vbe_interface_seg;
+  uint16_t vbe_interface_off;
+  uint16_t vbe_interface_len;
+
+  uint64_t framebuffer_addr;
+  uint32_t framebuffer_pitch;
+  uint32_t framebuffer_width;
+  uint32_t framebuffer_height;
+  uint8_t framebuffer_bpp;
+#define MULTIBOOT_FRAMEBUFFER_TYPE_INDEXED 0
+#define MULTIBOOT_FRAMEBUFFER_TYPE_RGB     1
+#define MULTIBOOT_FRAMEBUFFER_TYPE_EGA_TEXT     2
+  uint8_t framebuffer_type;
+  union
+  {
+    struct
+    {
+      uint32_t framebuffer_palette_addr;
+      uint16_t framebuffer_palette_num_colors;
+    };
+    struct
+    {
+      uint8_t framebuffer_red_field_position;
+      uint8_t framebuffer_red_mask_size;
+      uint8_t framebuffer_green_field_position;
+      uint8_t framebuffer_green_mask_size;
+      uint8_t framebuffer_blue_field_position;
+      uint8_t framebuffer_blue_mask_size;
+    };
+  };
+};
+struct multiboot_mmap_entry
+{
+  uint32_t size;
+  uint64_t addr;
+  uint64_t len;
+#define MULTIBOOT_MEMORY_AVAILABLE              1
+#define MULTIBOOT_MEMORY_RESERVED               2
+#define MULTIBOOT_MEMORY_ACPI_RECLAIMABLE       3
+#define MULTIBOOT_MEMORY_NVS                    4
+#define MULTIBOOT_MEMORY_BADRAM                 5
+  uint32_t type;
+} __attribute__((packed));
+typedef struct multiboot_mmap_entry multiboot_memory_map_t;
+struct multiboot_mod_list
+{
+  /* the memory used goes from bytes 'mod_start' to 'mod_end-1' inclusive */
+  uint32_t mod_start;
+  uint32_t mod_end;
+
+  /* Module command line */
+  uint32_t cmdline;
+
+  /* padding to take it to 16 bytes (must be zero) */
+  uint32_t pad;
+};
+typedef struct multiboot_mod_list multiboot_module_t;
+
+/* APM BIOS info. */
+struct multiboot_apm_info
+{
+  uint16_t version;
+  uint16_t cseg;
+  uint32_t offset;
+  uint16_t cseg_16;
+  uint16_t dseg;
+  uint16_t flags;
+  uint16_t cseg_len;
+  uint16_t cseg_16_len;
+  uint16_t dseg_len;
+};
+
+static void __init multiboot_to_bootdata(char *real_mode_data)
+{
+	struct multiboot_info *info = (struct multiboot_info *) real_mode_data;
+	//asm volatile ("1: jmp 1b");
+	if (info->flags & 4)
+	  boot_params.hdr.cmd_line_ptr = info->cmdline;
+	boot_params.hdr.header = 0x53726448;
+	boot_params.hdr.version = 0x020d;
+	boot_params.hdr.type_of_loader = 0xb; /* qemu */
+	boot_params.hdr.code32_start = 0x1000000;
+	if (info->flags & (1 << 3) && info->mods_count) {
+	    /* First module is the initrd */
+	    multiboot_module_t *mod = __va(info->mods_addr);
+	    boot_params.hdr.ramdisk_image = mod->mod_start;
+	    boot_params.hdr.ramdisk_size = mod->mod_end - mod->mod_start;
+	}
+	boot_params.hdr.kernel_alignment = 0x200000;
+	if (info->flags & (1 << 6)) {
+	    int count;
+	    multiboot_memory_map_t *mmap, *end;
+	    mmap = __va(info->mmap_addr);
+	    end = __va(info->mmap_addr + info->mmap_length);
+	    for (count = 0; mmap < end && count < ARRAY_SIZE(boot_params.e820_map); mmap = (multiboot_memory_map_t *) ((uint64_t)mmap + mmap->size + sizeof(mmap->size)), count++) {
+		boot_params.e820_map[count].addr = mmap->addr;
+		boot_params.e820_map[count].size = mmap->len;
+		boot_params.e820_map[count].type = mmap->type;
+	    }
+	    boot_params.e820_entries = count;
+	}
+}
+
 static void __init copy_bootdata(char *real_mode_data)
 {
 	char * command_line;
 	unsigned long cmd_line_ptr;
 
-	memcpy(&boot_params, real_mode_data, sizeof boot_params);
+	if (((u64)real_mode_data) & 1)
+	  multiboot_to_bootdata( (char*)(((u64)real_mode_data) - 1) );
+	else
+	  memcpy(&boot_params, real_mode_data, sizeof boot_params);
 	sanitize_boot_params(&boot_params);
 	cmd_line_ptr = get_cmd_line_ptr();
 	if (cmd_line_ptr) {

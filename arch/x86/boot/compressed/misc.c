@@ -388,6 +388,10 @@ static void parse_elf(void *output, void *input_data)
 #else
 			dest = (void *)(phdr->p_paddr);
 #endif
+			if (i == 0 && phdr->p_filesz < 1024) {
+			    debug_putstr("ignoring multiboot PHDR\n");
+			    continue;
+			}
 			debug_putstr("2\n");
 			void *src = input_data + phdr->p_offset;
 			debug_putaddr(dest);

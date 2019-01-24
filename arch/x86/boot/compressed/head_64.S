@@ -335,6 +335,11 @@ preferred_addr:
 	cmpq	$LOAD_PHYSICAL_ADDR, %rbp
 	jge	1f
 #endif
+	# when embedding an uncompressed vmlinux that blob might
+	# reach from whereever that's loaded into the LOAD_PHYSICAL_ADDR
+	# area, so when copying the kernel segments to that we actually
+	# clobber that later parts, simply use a higher address
+	# This needs CONFIG_RELOCATABLE to work!
 	movq	$(8*LOAD_PHYSICAL_ADDR), %rbp
 1:
 

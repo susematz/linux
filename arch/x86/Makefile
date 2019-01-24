@@ -38,6 +38,10 @@ export BITS
 ifdef CONFIG_X86_NEED_RELOCS
         LDFLAGS_vmlinux := --emit-relocs
 endif
+# The multiboot header hard-coding assumes this alignment
+# (in particular that .text is at file offset 0x200000, and that
+# .data starts a multiple of this after .text)
+LDFLAGS_vmlinux += -z max-page-size=0x200000
 
 #
 # Prevent GCC from generating any FP code by mistake.
