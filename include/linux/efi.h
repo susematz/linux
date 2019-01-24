@@ -1020,7 +1020,7 @@ static inline bool efi_enabled(int feature)
 }
 extern void efi_reboot(enum reboot_mode reboot_mode, const char *__unused);
 #else
-#define efi_enabled(x) ((x), 0)
+#define efi_enabled(x) ((void)(x), 0)
 /*static inline bool efi_enabled(int feature)
 {
 	return false;
