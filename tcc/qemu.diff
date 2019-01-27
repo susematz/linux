@@ -1,0 +1,38 @@
+diff --git a/hw/i386/multiboot.c b/hw/i386/multiboot.c
+index 62340687e8..d1e28d23e3 100644
+--- a/hw/i386/multiboot.c
++++ b/hw/i386/multiboot.c
+@@ -34,7 +34,7 @@
+ #include "qemu/error-report.h"
+ 
+ /* Show multiboot debug output */
+-//#define DEBUG_MULTIBOOT
++#define DEBUG_MULTIBOOT
+ 
+ #ifdef DEBUG_MULTIBOOT
+ #define mb_debug(a...) error_report(a)
+@@ -226,14 +226,14 @@ int load_multiboot(FWCfgState *fw_cfg,
+         uint32_t mh_bss_end_addr = ldl_p(header+i+24);
+ 
+         mh_load_addr = ldl_p(header+i+16);
+-        if (mh_header_addr < mh_load_addr) {
++        /*if (mh_header_addr < mh_load_addr) {
+             error_report("invalid load_addr address");
+             exit(1);
+         }
+         if (mh_header_addr - mh_load_addr > i) {
+             error_report("invalid header_addr address");
+             exit(1);
+-        }
++        }*/
+ 
+         uint32_t mb_kernel_text_offset = i - (mh_header_addr - mh_load_addr);
+         uint32_t mb_load_size = 0;
+@@ -364,6 +364,7 @@ int load_multiboot(FWCfgState *fw_cfg,
+     char kcmdline[strlen(kernel_filename) + strlen(kernel_cmdline) + 2];
+     snprintf(kcmdline, sizeof(kcmdline), "%s %s",
+              kernel_filename, kernel_cmdline);
++    mb_debug("mb cmdline: %s", kcmdline);
+     stl_p(bootinfo + MBI_CMDLINE, mb_add_cmdline(&mbs, kcmdline));
+ 
+     stl_p(bootinfo + MBI_BOOTLOADER, mb_add_bootloader(&mbs, bootloader_name));

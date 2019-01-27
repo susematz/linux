@@ -50,3 +50,20 @@ Repeat the qemu command and it should still work, just slower.
 
 You can use smaller configs, knownok2.config and smaller.config
 (see arch/x86/config/).
+
+This kernel also has a multiboot header and the necessary bootup glue code
+to make it loadable within qemu.  That obviates the need to compress and
+repack the kernel into a bzImage, you can directly load the vmlinux ELF
+file.  If your qemu supports it, then, just make vmlinux:
+
+% make REALCC="$TCCDIR/tcc -B$TCCDIR" CCLIB="$TCCDIR/libtcc1.a" vmlinux -j8
+
+and use 'vmlinux' as kernel argument for qemu:
+
+% qemu-system-x86_64 -s -m 1024 -serial vc -debugcon vc -kernel vmlinux -append "console=ttyS0,vga earlycon=uart,io,0xe9 earlyprintk=vga" -initrd tcc/initrd/cpio
+
+If your qemu throws errors about inconsistencies in the multiboot
+header you might look into tcc/qemu.diff for changes that I needed
+for some qemu versions (it disables a consistency check that actually
+tests for something that isn't specified in this way in the multiboot
+spec).
