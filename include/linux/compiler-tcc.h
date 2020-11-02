@@ -279,4 +279,4 @@
 #define uninitialized_var(x) x = x
 
 #define __builtin_memcpy memcpy
-#define __builtin_prefetch(A, ...) ((void)A)
+#define __builtin_prefetch(A, ...) ((void)(A))
